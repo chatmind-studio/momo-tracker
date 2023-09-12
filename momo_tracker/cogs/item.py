@@ -38,38 +38,7 @@ class ItemCog(Cog):
     @command
     async def view_items(self, ctx: Context, index: int = 0) -> Any:
         user, _ = await User.get_or_create(id=ctx.user_id)
-
         all_items = await user.items.all()
-        split_items = split_list(all_items, 11)
-        items = split_items[index]
-
-        quick_reply_items: List[QuickReplyItem] = []
-        for item in items:
-            quick_reply_item = QuickReplyItem(
-                PostbackAction(
-                    f"{item.name[:17]}..." if len(item.name) > 20 else item.name,
-                    data=f"cmd=view_item&item_id={item.id}",
-                )
-            )
-            quick_reply_items.append(quick_reply_item)
-        if index > 0:
-            quick_reply_items.insert(
-                0,
-                QuickReplyItem(
-                    action=PostbackAction(
-                        label="上一頁", data=f"cmd=view_items&index={index-1}"
-                    )
-                ),
-            )
-        if index < len(split_items) - 1:
-            quick_reply_items.append(
-                QuickReplyItem(
-                    action=PostbackAction(
-                        label="下一頁", data=f"cmd=view_items&index={index+1}"
-                    )
-                )
-            )
-        quick_reply = QuickReply(items=quick_reply_items)
 
         template = ButtonsTemplate(
             f"目前追蹤了 {len(all_items)} 個商品\n點按下方的按鈕來查看已追蹤商品的詳情",
@@ -84,7 +53,42 @@ class ItemCog(Cog):
             ],
             title="追蹤清單",
         )
-        await ctx.reply_template("追蹤清單", template=template, quick_reply=quick_reply)
+
+        if all_items:
+            split_items = split_list(all_items, 11)
+            items = split_items[index]
+
+            quick_reply_items: List[QuickReplyItem] = []
+            for item in items:
+                quick_reply_item = QuickReplyItem(
+                    PostbackAction(
+                        f"{item.name[:17]}..." if len(item.name) > 20 else item.name,
+                        data=f"cmd=view_item&item_id={item.id}",
+                    )
+                )
+                quick_reply_items.append(quick_reply_item)
+            if index > 0:
+                quick_reply_items.insert(
+                    0,
+                    QuickReplyItem(
+                        action=PostbackAction(
+                            label="上一頁", data=f"cmd=view_items&index={index-1}"
+                        )
+                    ),
+                )
+            if index < len(split_items) - 1:
+                quick_reply_items.append(
+                    QuickReplyItem(
+                        action=PostbackAction(
+                            label="下一頁", data=f"cmd=view_items&index={index+1}"
+                        )
+                    )
+                )
+            quick_reply = QuickReply(items=quick_reply_items)
+
+            await ctx.reply_template("追蹤清單", template=template, quick_reply=quick_reply)
+        else:
+            await ctx.reply_template("追蹤清單", template=template)
 
     @command
     async def view_item(self, ctx: Context, item_id: str) -> Any:
