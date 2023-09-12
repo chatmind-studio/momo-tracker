@@ -3,4 +3,3 @@ tortoise-orm
 playwright
 asyncpg
 beautifulsoup4
-```
