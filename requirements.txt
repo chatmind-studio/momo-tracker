@@ -2,3 +2,5 @@ line.py @ git+https://github.com/seriaati/line.py
 tortoise-orm
 playwright
 asyncpg
+beautifulsoup4
+```
