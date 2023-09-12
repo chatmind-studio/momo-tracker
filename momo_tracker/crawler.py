@@ -1,5 +1,7 @@
 from typing import List
 
+import aiohttp
+from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 
 from .db_models import Item, PromotionItem
@@ -76,19 +78,17 @@ async def crawl_promos():
 
 
 async def fetch_item_object(item_url: str) -> Item:
-    async with async_playwright() as p:
-        browser = await p.chromium.launch()
-        page = await browser.new_page()
-        await page.goto(item_url)
+    async with aiohttp.ClientSession() as session:
+        async with session.get(item_url) as response:
+            html = await response.text()
+            soup = BeautifulSoup(html, "html.parser")
 
-        name_div = await page.query_selector("span#osmGoodsName")
-        if not name_div:
-            name = ""
-        else:
-            name = await name_div.inner_text()
+            # find span with id osmGoodsName
+            name_div = soup.find("span", {"id": "osmGoodsName"})
+            name = name_div.text if name_div else ""
 
-        item_id = page.url.split("i_code=")[1].split("&")[0]
-        await page.close()
-        await browser.close()
-
-        return Item(id=item_id, name=name)
+            item = Item(
+                id=str(response.url).split("i_code=")[1].split("&")[0],
+                name=name,
+            )
+            return item
