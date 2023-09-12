@@ -84,3 +84,4 @@ class MomoTracker(Bot):
 
     async def on_close(self) -> None:
         await Tortoise.close_connections()
+        await self.browser.close()
