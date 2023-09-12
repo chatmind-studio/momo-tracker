@@ -19,12 +19,9 @@ class MomoTracker(Bot):
         channel_secret: str,
         access_token: str,
         db_url: str,
-        playwright: Playwright,
     ) -> None:
         super().__init__(channel_secret=channel_secret, access_token=access_token)
         self.db_url = db_url
-        self.playwright = playwright
-        self.browser: Browser
 
     async def _setup_rich_menu(self) -> None:
         result = await self.line_bot_api.create_rich_menu(RICH_MENU)
@@ -52,15 +49,10 @@ class MomoTracker(Bot):
         )
         await Tortoise.generate_schemas()
 
-        logging.info("Opening browser")
-        self.browser = await self.playwright.chromium.launch()
-
     async def handle_no_cmd(self, ctx: Context, text: str) -> Any:
         url = extract_url(text)
         if url and ("momoshop.com" in url or "momo.dm" in url):
-            item_name = await add_item_to_db(
-                user_id=ctx.user_id, item_url=url, browser=self.browser
-            )
+            item_name = await add_item_to_db(user_id=ctx.user_id, item_url=url)
             await ctx.reply_text(f"已將 {item_name} 加入追蹤清單")
 
     async def run_tasks(self) -> None:
@@ -78,10 +70,9 @@ class MomoTracker(Bot):
                                 await line_notify(user.line_notify_token, message)
 
             await PromotionItem.all().delete()
-            next_promotion_items = await crawl_promos(self.browser)
+            next_promotion_items = await crawl_promos()
             for item in next_promotion_items:
                 await item.save()
 
     async def on_close(self) -> None:
         await Tortoise.close_connections()
-        await self.browser.close()

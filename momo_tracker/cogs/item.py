@@ -1,6 +1,6 @@
 from typing import Any, List
 
-from line import Cog, Context, command
+from line import Bot, Cog, Context, command
 from line.models import (
     ButtonsTemplate,
     PostbackAction,
@@ -11,16 +11,15 @@ from line.models import (
 from playwright.async_api import Browser
 from tortoise.exceptions import IntegrityError
 
-from ..bot_model import MomoTrackerBot
 from ..crawler import fetch_item_object
 from ..db_models import User
 from ..utils import split_list
 
 
-async def add_item_to_db(*, user_id: str, item_url: str, browser: Browser) -> str:
+async def add_item_to_db(*, user_id: str, item_url: str) -> str:
     user = await User.get(id=user_id)
 
-    item = await fetch_item_object(browser, item_url)
+    item = await fetch_item_object(item_url)
     try:
         await item.save()
     except IntegrityError:
@@ -31,7 +30,7 @@ async def add_item_to_db(*, user_id: str, item_url: str, browser: Browser) -> st
 
 
 class ItemCog(Cog):
-    def __init__(self, bot: MomoTrackerBot):
+    def __init__(self, bot: Bot):
         super().__init__(bot)
         self.bot = bot
 
@@ -113,9 +112,7 @@ class ItemCog(Cog):
 
     @command
     async def add_item(self, ctx: Context, item_url: str) -> Any:
-        item_name = await add_item_to_db(
-            user_id=ctx.user_id, item_url=item_url, browser=self.bot.browser
-        )
+        item_name = await add_item_to_db(user_id=ctx.user_id, item_url=item_url)
         await ctx.reply_text(f"已將 {item_name} 加入追蹤清單")
 
     @command
