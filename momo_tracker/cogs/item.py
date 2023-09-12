@@ -12,7 +12,7 @@ from playwright.async_api import Browser
 from tortoise.exceptions import IntegrityError
 
 from ..bot_model import MomoTrackerBot
-from ..crawl.crawler import fetch_item_object
+from ..crawler import fetch_item_object
 from ..db_models import User
 from ..utils import split_list
 
