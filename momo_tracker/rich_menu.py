@@ -19,7 +19,8 @@ RICH_MENU = RichMenuRequest(
         RichMenuArea(
             bounds=RichMenuBounds(x=600, y=0, width=600, height=405),
             action=URIAction(
-                uri="https://www.momoshop.com.tw/main/Main.jsp", label="momo 官網"
+                uri="https://www.momoshop.com.tw/main/Main.jsp?openExternalBrowser=1",
+                label="momo 官網",
             ),
         ),
         RichMenuArea(
@@ -28,7 +29,10 @@ RICH_MENU = RichMenuRequest(
         ),
         RichMenuArea(
             bounds=RichMenuBounds(x=600, y=405, width=600, height=405),
-            action=MessageAction(text="cmd=help", label="使用說明"),
+            action=URIAction(
+                uri="https://seraiati.notion.site/momo-05cda362419b4c8480ec9b87cdf552ea?pvs=4&openExternalBrowser=1",
+                label="使用說明",
+            ),
         ),
     ],
 )
