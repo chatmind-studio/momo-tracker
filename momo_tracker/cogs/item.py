@@ -2,7 +2,8 @@ from typing import Any, List
 
 from line import Bot, Cog, Context, command
 from line.models import (
-    ButtonsTemplate,
+    CarouselColumn,
+    CarouselTemplate,
     PostbackAction,
     QuickReply,
     QuickReplyItem,
@@ -11,8 +12,8 @@ from line.models import (
 from tortoise.exceptions import IntegrityError
 
 from ..crawler import fetch_item_object
-from ..db_models import Item, User
-from ..utils import extract_url, split_list
+from ..db_models import User
+from ..utils import split_list
 
 
 async def add_item_to_db(*, user_id: str, item_url: str) -> str:
@@ -33,97 +34,59 @@ class ItemCog(Cog):
         super().__init__(bot)
         self.bot = bot
 
-    @staticmethod
-    async def item_paginator(items: List[Item], index: int) -> QuickReply:
-        split_items = split_list(items, 11)
-        items = split_items[index]
-
-        quick_reply_items: List[QuickReplyItem] = []
-        for item in items:
-            quick_reply_item = QuickReplyItem(
-                PostbackAction(
-                    f"{item.name[:17]}..." if len(item.name) > 20 else item.name,
-                    data=f"cmd=view_item&item_id={item.id}&index={index}",
-                )
-            )
-            quick_reply_items.append(quick_reply_item)
-        if index > 0:
-            quick_reply_items.insert(
-                0,
-                QuickReplyItem(
-                    action=PostbackAction(
-                        label="上一頁", data=f"cmd=view_items&index={index-1}"
-                    )
-                ),
-            )
-        if index < len(split_items) - 1:
-            quick_reply_items.append(
-                QuickReplyItem(
-                    action=PostbackAction(
-                        label="下一頁", data=f"cmd=view_items&index={index+1}"
-                    )
-                )
-            )
-        quick_reply = QuickReply(items=quick_reply_items)
-        return quick_reply
-
     @command
     async def view_items(self, ctx: Context, index: int = 0) -> Any:
         user, _ = await User.get_or_create(id=ctx.user_id)
         all_items = await user.items.all()
 
-        template = ButtonsTemplate(
-            f"目前追蹤了 {len(all_items)} 個商品\n點按下方的按鈕來查看已追蹤商品的詳情",
-            [
-                PostbackAction(
-                    label="追蹤新的商品",
-                    data="ignore",
-                    fill_in_text="cmd=add_item&item_url=",
-                    input_option="openKeyboard",
-                    display_text="請直接貼上 momo 商品網址\n輸入後需等待 3~5 秒至程式成功獲取商品\n\n請勿更動前面的英文指令",
-                )
-            ],
-            title="追蹤清單",
-        )
-
-        if all_items:
-            quick_reply = await self.item_paginator(items=all_items, index=index)
-            await ctx.reply_template("追蹤清單", template=template, quick_reply=quick_reply)
+        if not all_items:
+            await ctx.reply_text("你尚未追蹤任何商品, 追蹤商品後才能收到特價通知\n追蹤方式請看「使用說明」")
         else:
-            await ctx.reply_template("追蹤清單", template=template)
+            split_items = split_list(all_items, 10)
+            items = split_items[index]
+            columns: List[CarouselColumn] = []
+            for item in items:
+                column = CarouselColumn(
+                    text=f"{item.name[:60]}..." if len(item.name) > 60 else item.name,
+                    actions=[
+                        PostbackAction(
+                            "取消追蹤",
+                            data=f"cmd=remove_item&item_id={item.id}",
+                        ),
+                        URIAction(
+                            "前往商品頁面",
+                            uri=f"https://www.momoshop.com.tw/goods/GoodsDetail.jsp?i_code={item.id}&openExternalBrowser=1",
+                        ),
+                    ],
+                    thumbnail_image_url=item.image_url,
+                )
+                columns.append(column)
 
-    @command
-    async def view_item(self, ctx: Context, item_id: str, index: int = 0) -> Any:
-        user = await User.get(id=ctx.user_id)
-        item = await user.items.filter(id=item_id).first()
-        assert item
+            quick_reply_items: List[QuickReplyItem] = []
+            if index > 0:
+                quick_reply_items.append(
+                    QuickReplyItem(
+                        action=PostbackAction(
+                            label="上一頁", data=f"cmd=view_items&index={index-1}"
+                        )
+                    ),
+                )
+            if index < len(split_items) - 1:
+                quick_reply_items.append(
+                    QuickReplyItem(
+                        action=PostbackAction(
+                            label="下一頁", data=f"cmd=view_items&index={index+1}"
+                        )
+                    )
+                )
 
-        template = ButtonsTemplate(
-            item.name,
-            [
-                PostbackAction(
-                    label="取消追蹤",
-                    data=f"cmd=remove_item&item_id={item.id}",
-                ),
-                URIAction(
-                    label="前往商品頁面",
-                    uri=f"https://www.momoshop.com.tw/goods/GoodsDetail.jsp?i_code={item.id}&openExternalBrowser=1",
-                ),
-            ],
-        )
-
-        quick_reply = await self.item_paginator(
-            items=await user.items.all(), index=index
-        )
-        await ctx.reply_template(item.name, template=template, quick_reply=quick_reply)
-
-    @command
-    async def add_item(self, ctx: Context, item_url: str) -> Any:
-        extracted_url = extract_url(item_url)
-        if not extracted_url:
-            return await ctx.reply_text("無效的 momo 商品網址")
-        item_name = await add_item_to_db(user_id=ctx.user_id, item_url=extracted_url)
-        await ctx.reply_text(f"已將 {item_name} 加入追蹤清單")
+            await ctx.reply_template(
+                "追蹤清單",
+                template=CarouselTemplate(columns=columns),
+                quick_reply=QuickReply(items=quick_reply_items)
+                if quick_reply_items
+                else None,
+            )
 
     @command
     async def remove_item(self, ctx: Context, item_id: str) -> Any:
