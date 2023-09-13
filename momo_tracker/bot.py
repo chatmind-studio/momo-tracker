@@ -10,6 +10,7 @@ from .cogs.item import add_item_to_db
 from .crawler import crawl_promos
 from .db_models import Item, PromotionItem
 from .rich_menu import RICH_MENU
+from .tasks import notify_promotion_items
 from .utils import extract_url, get_now, line_notify
 
 
@@ -57,22 +58,12 @@ class MomoTracker(Bot):
 
     async def run_tasks(self) -> None:
         now = get_now()
-        if now.hour in (0, 8, 12, 16, 21) and now.minute < 1:
-            promotion_items = await PromotionItem.all()
-            items = await Item.all()
-            for promotion_item in promotion_items:
-                for item in items:
-                    if item.id == promotion_item.id:
-                        users = await item.users.all()
-                        message = f"{item.name} 正在特價!\n原價: ${promotion_item.original_price}\n特價: ${promotion_item.discount_price}\n下殺 {promotion_item.discount_rate} 折\n剩下 {promotion_item.remain_count} 組\n商品連結: {promotion_item.url}\n搶購頁面: https://www.momoshop.com.tw/edm/cmmedm.jsp?lpn=O1K5FBOqsvN"
-                        for user in users:
-                            if user.line_notify_token:
-                                await line_notify(user.line_notify_token, message)
-
-            await PromotionItem.all().delete()
-            next_promotion_items = await crawl_promos()
-            for item in next_promotion_items:
-                await item.save()
+        if now.hour in (23, 7, 11, 15, 20) and now.minute < 1:
+            logging.info("Crawling promotion items")
+            await crawl_promos()
+        elif now.hour in (0, 8, 12, 16, 21) and now.minute < 1:
+            logging.info("Notifying promotion items")
+            await notify_promotion_items()
 
     async def on_close(self) -> None:
         await Tortoise.close_connections()
