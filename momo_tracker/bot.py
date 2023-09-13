@@ -3,15 +3,13 @@ from pathlib import Path
 from typing import Any
 
 from line import Bot, Context
-from playwright.async_api import Browser, Playwright
 from tortoise import Tortoise
 
 from .cogs.item import add_item_to_db
 from .crawler import crawl_promos
-from .db_models import Item, PromotionItem
 from .rich_menu import RICH_MENU
 from .tasks import notify_promotion_items
-from .utils import extract_url, get_now, line_notify
+from .utils import extract_url, get_now
 
 
 class MomoTracker(Bot):
