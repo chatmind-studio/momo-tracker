@@ -1,15 +1,26 @@
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
+import aiohttp
+from aiohttp import web
+from dotenv import load_dotenv
 from line import Bot, Context
 from tortoise import Tortoise
 
 from .cogs.item import add_item_to_db
 from .crawler import crawl_promos
+from .db_models import User
 from .rich_menu import RICH_MENU
 from .tasks import notify_promotion_items
 from .utils import extract_url, get_now
+
+load_dotenv()
+
+LINE_NOTIFY_SECRET = os.getenv("LINE_NOTIFY_SECRET")
+if not LINE_NOTIFY_SECRET:
+    raise RuntimeError("LINE_NOTIFY_SECRET is required.")
 
 
 class MomoTracker(Bot):
@@ -32,6 +43,35 @@ class MomoTracker(Bot):
             )
         await self.line_bot_api.set_default_rich_menu(result.rich_menu_id)
 
+    async def line_notify_callback(self, request: web.Request) -> web.Response:
+        params = await request.post()
+        code = params.get("code")
+        state = params.get("state")
+        redirect_url = "https://line.me/R/oaMessage/%40181ucqqr"
+
+        user = await User.get_or_none(line_notify_state=state)
+        if user:
+            data = {
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": "https://linebot.seriaati.xyz/momo/line-notify",
+                "client_id": "RdvWjFh1XtViZ0VbQdqtgc",
+                "client_secret": LINE_NOTIFY_SECRET,
+            }
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    "https://notify-bot.line.me/oauth/token", data=data
+                ) as resp:
+                    resp_data = await resp.json()
+                    user.line_notify_token = resp_data["access_token"]
+                    user.line_notify_state = None
+                    await user.save()
+
+        return web.Response(
+            status=302,
+            headers={"Location": redirect_url},
+        )
+
     async def setup_hook(self) -> None:
         for cog in Path("momo_tracker/cogs").glob("*.py"):
             if cog.stem == "__init__":
@@ -41,12 +81,16 @@ class MomoTracker(Bot):
 
         logging.info("Setting up rich menu")
         await self._setup_rich_menu()
+
         logging.info("Setting up database")
         await Tortoise.init(
             db_url=self.db_url,
             modules={"models": ["momo_tracker.db_models"]},
         )
         await Tortoise.generate_schemas()
+
+        logging.info("Setting up webhook")
+        self.app.add_routes([web.post("/momo/line-notify", self.line_notify_callback)])
 
     async def handle_no_cmd(self, ctx: Context, text: str) -> Any:
         url = extract_url(text)

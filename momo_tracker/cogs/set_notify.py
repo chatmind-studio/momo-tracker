@@ -1,10 +1,21 @@
-from typing import Optional
+from typing import Any
+from uuid import uuid4
 
+import aiohttp
 from line import Bot, Cog, Context, command
-from line.models import ButtonsTemplate, PostbackAction
+from line.models import (
+    ButtonsTemplate,
+    ConfirmTemplate,
+    ImageMessage,
+    PostbackAction,
+    TemplateMessage,
+    URIAction,
+)
 
 from ..db_models import User
 from ..utils import line_notify
+
+LINE_NOTIFY_OAUTH_URI = "https://notify-bot.line.me/oauth/authorize?openExternalBrowser=1&response_type=code&client_id=RdvWjFh1XtViZ0VbQdqtgc&redirect_uri={redirect_uri}&scope=notify&state={state}&response_mode=form_post"
 
 
 class SetNotifyCog(Cog):
@@ -13,31 +24,70 @@ class SetNotifyCog(Cog):
         self.bot = bot
 
     @command
-    async def set_line_notify(self, ctx: Context, token: Optional[str] = None):
+    async def set_line_notify(self, ctx: Context, reset: bool = False) -> Any:
         user, _ = await User.get_or_create(id=ctx.user_id)
-        if not token:
-            if not user.line_notify_token:
-                display_text = "請直接貼上 LINE Notify 權杖\n\n請勿更動前面的英文指令"
-            else:
-                display_text = "你已經設定過 LINE Notify 權杖\n輸入新的權杖以更新"
+        if reset:
+            async with aiohttp.ClientSession(
+                headers={"Authorization": f"Bearer {user.line_notify_token}"}
+            ) as session:
+                await session.post("https://notify-api.line.me/api/revoke")
+
+            user.line_notify_token = None
+            user.line_notify_state = None
+            await user.save()
+
+        if not user.line_notify_token:
+            state = str(uuid4())
+            user.line_notify_state = state
+            await user.save()
+
             template = ButtonsTemplate(
-                "如欲在追蹤的商品特價時收到通知, 請先設定 LINE Notify\n操作方式可查看「使用說明」",
+                "如欲在追蹤的商品特價時收到通知, 請先設定 LINE Notify",
                 [
-                    PostbackAction(
-                        f"{'輸入' if not user.line_notify_token else '更新'} LINE Notify 權杖",
-                        data="ignore",
-                        fill_in_text="cmd=set_line_notify&token=",
-                        display_text=display_text,
-                        input_option="openKeyboard",
+                    URIAction(
+                        label="前往設定",
+                        uri=LINE_NOTIFY_OAUTH_URI.format(
+                            state=state,
+                            redirect_uri="https://linebot.seriaati.xyz/momo/line-notify",
+                        ),
                     )
                 ],
+                title="通知設定",
             )
-            return await ctx.reply_template("設定 LINE Notify", template=template)
+            image = ImageMessage(
+                original_content_url="https://i.imgur.com/wPYl7Jx.png",
+                preview_image_url="https://i.imgur.com/wPYl7Jx.png",
+            )
+            await ctx.reply_multiple(
+                [
+                    TemplateMessage("通知設定", template=template),
+                    image,
+                ]
+            )
+        else:
+            template = ButtonsTemplate(
+                "✅ 設定完成\n\n如欲在追蹤的商品特價時收到通知, 請先設定 LINE Notify",
+                [
+                    PostbackAction("發送測試訊息", data="cmd=send_test_message"),
+                    PostbackAction("重新設定", data="cmd=reset_line_notify"),
+                ],
+                title="通知設定",
+            )
+            await ctx.reply_template("通知設定", template=template)
 
-        success = await line_notify(token, "測試訊息")
-        if not success:
-            return await ctx.reply_text("無效的 LINE Notify 權杖")
+    @command
+    async def send_test_message(self, ctx: Context) -> Any:
+        user = await User.get(id=ctx.user_id)
+        assert user.line_notify_token
+        await line_notify(user.line_notify_token, "這是一則測試訊息")
 
-        user.line_notify_token = token
-        await user.save()
-        await ctx.reply_text("LINE Notify 權杖設置成功")
+    @command
+    async def reset_line_notify(self, ctx: Context) -> Any:
+        template = ConfirmTemplate(
+            "確定要重新設定 LINE Notify 嗎?",
+            [
+                PostbackAction("確定", data="cmd=set_line_notify&reset=True"),
+                PostbackAction("取消", data="ignore", display_text="已取消"),
+            ],
+        )
+        await ctx.reply_template("確認設定", template=template)
