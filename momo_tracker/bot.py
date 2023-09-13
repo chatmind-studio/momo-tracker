@@ -14,7 +14,7 @@ from .crawler import crawl_promos
 from .db_models import User
 from .rich_menu import RICH_MENU
 from .tasks import notify_promotion_items
-from .utils import extract_url, get_now
+from .utils import extract_url, get_now, line_notify
 
 load_dotenv()
 
@@ -95,8 +95,16 @@ class MomoTracker(Bot):
     async def handle_no_cmd(self, ctx: Context, text: str) -> Any:
         url = extract_url(text)
         if url and ("momoshop.com" in url or "momo.dm" in url):
-            item_name = await add_item_to_db(user_id=ctx.user_id, item_url=url)
-            await ctx.reply_text(f"已將 {item_name} 加入追蹤清單")
+            await ctx.reply_text(
+                "機器人正在處理這項商品 (需約 5~7 秒), 如果你有進行「通知設定」, 將會在商品成功加入追蹤清單後收到通知"
+            )
+
+            user, _ = await User.get_or_create(id=ctx.user_id)
+            item_name = await add_item_to_db(user=user, item_url=url)
+            if user.line_notify_token:
+                await line_notify(user.line_notify_token, f"已加入追蹤清單: {item_name}")
+        else:
+            await ctx.reply_text("這個商品連結是無效的")
 
     async def run_tasks(self) -> None:
         now = get_now()
