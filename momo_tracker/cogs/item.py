@@ -16,9 +16,7 @@ from ..db_models import User
 from ..utils import split_list
 
 
-async def add_item_to_db(*, user_id: str, item_url: str) -> str:
-    user, _ = await User.get_or_create(id=user_id)
-
+async def add_item_to_db(*, user: User, item_url: str) -> str:
     item = await fetch_item_object(item_url)
     try:
         await item.save()
@@ -40,7 +38,9 @@ class ItemCog(Cog):
         all_items = await user.items.all()
 
         if not all_items:
-            await ctx.reply_text("你尚未追蹤任何商品, 追蹤商品後才能收到特價通知\n追蹤方式請看「使用說明」")
+            await ctx.reply_text(
+                "你尚未追蹤任何商品, 追蹤商品後才能在特價時收到通知\n追蹤方式: 將 momo 購物網商品頁面的網址分享給機器人\n\n(圖文教學可點擊「使用教學」查看)"
+            )
         else:
             split_items = split_list(all_items, 10)
             items = split_items[index]
