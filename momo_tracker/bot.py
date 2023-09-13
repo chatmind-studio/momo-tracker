@@ -96,13 +96,20 @@ class MomoTracker(Bot):
         url = extract_url(text)
         if url and ("momoshop.com" in url or "momo.dm" in url):
             await ctx.reply_text(
-                "機器人正在處理這項商品 (需約 5~7 秒), 如果你有進行「通知設定」, 將會在商品成功加入追蹤清單後收到通知"
+                "機器人正在處理這項商品 (需約 5~7 秒), 如果你有進行「通知設定」, 將會在商品成功加入追蹤清單時收到通知"
             )
 
             user, _ = await User.get_or_create(id=ctx.user_id)
-            item_name = await add_item_to_db(user=user, item_url=url)
-            if user.line_notify_token:
-                await line_notify(user.line_notify_token, f"已加入追蹤清單: {item_name}")
+            try:
+                item_name = await add_item_to_db(user=user, item_url=url)
+            except IndexError:
+                if user.line_notify_token:
+                    await line_notify(user.line_notify_token, f"這個商品連結 ({url}) 是無效的")
+            else:
+                if user.line_notify_token:
+                    await line_notify(
+                        user.line_notify_token, f"已加入追蹤清單: {item_name} ({url})"
+                    )
         else:
             await ctx.reply_text("這個商品連結是無效的")
 
