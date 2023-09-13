@@ -59,18 +59,18 @@ async def crawl_promos():
             original_price = await original_price_div.inner_text()
             discount_rate = await discount_rate_div.inner_text()
 
-            promotion_items.append(
-                PromotionItem(
-                    id=url.split("i_code=")[1].split("&")[0],
-                    url=f"https:{url}",
-                    original_price=int(original_price.replace("$", "")),
-                    discount_price=int(price.replace(",", "")),
-                    discount_rate=int(discount_rate),
-                    name=name,
-                    brand_name=brand_name,
-                    remain_count=int(remain_count),
-                )
+            promotion_item = PromotionItem(
+                id=url.split("i_code=")[1].split("&")[0],
+                url=f"https:{url}",
+                original_price=int(original_price.replace("$", "")),
+                discount_price=int(price.replace(",", "")),
+                discount_rate=float(discount_rate),
+                name=name,
+                brand_name=brand_name,
+                remain_count=int(remain_count.replace(",", "")),
             )
+            promotion_items.append(promotion_item)
+
         await page.close()
         await browser.close()
 
