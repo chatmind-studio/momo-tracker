@@ -21,7 +21,7 @@ class PromotionItem(Model):
     url = fields.CharField(max_length=255)
     original_price = fields.IntField()
     discount_price = fields.IntField()
-    discount_rate = fields.IntField()
+    discount_rate = fields.FloatField()
     name = fields.CharField(max_length=255)
     brand_name = fields.CharField(max_length=255)
     remain_count = fields.IntField()
