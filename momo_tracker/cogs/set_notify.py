@@ -80,6 +80,15 @@ class SetNotifyCog(Cog):
         user = await User.get(id=ctx.user_id)
         assert user.line_notify_token
         await line_notify(user.line_notify_token, "這是一則測試訊息")
+        template = ButtonsTemplate(
+            "已發送測試訊息",
+            [
+                URIAction(
+                    label="點我前往查看", uri="https://line.me/R/oaMessage/%40linenotify"
+                )
+            ],
+        )
+        await ctx.reply_template("已發送測試訊息", template=template)
 
     @command
     async def reset_line_notify(self, ctx: Context) -> Any:
