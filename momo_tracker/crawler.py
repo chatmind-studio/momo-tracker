@@ -9,9 +9,15 @@ from .db_models import Item, PromotionItem
 
 async def crawl_promos():
     async with async_playwright() as p:
-        browser = await p.chromium.launch()
+        browser = await p.chromium.launch(headless=False)
         promotion_items: List[PromotionItem] = []
         page = await browser.new_page()
+        await page.route(
+            "**/*",
+            lambda route: route.abort()
+            if route.request.resource_type == "image"
+            else route.continue_(),
+        )
         await page.goto(
             "https://www.momoshop.com.tw/edm/cmmedm.jsp?lpn=O1K5FBOqsvN&n=1"
         )
@@ -87,8 +93,13 @@ async def fetch_item_object(item_url: str) -> Item:
             name_div = soup.find("span", {"id": "osmGoodsName"})
             name = name_div.text if name_div else ""
 
+            # find img with class name jqzoom and get its src
+            image_div = soup.find("img", {"class": "jqzoom"})
+            image_url = image_div["src"] if image_div else ""  # type: ignore
+
             item = Item(
                 id=str(response.url).split("i_code=")[1].split("&")[0],
                 name=name,
+                image_url=image_url,
             )
             return item
