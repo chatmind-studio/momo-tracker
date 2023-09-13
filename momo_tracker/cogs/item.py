@@ -47,7 +47,7 @@ class ItemCog(Cog):
             columns: List[CarouselColumn] = []
             for item in items:
                 column = CarouselColumn(
-                    text=f"{item.name[:60]}..." if len(item.name) > 60 else item.name,
+                    text=f"{item.name[:57]}..." if len(item.name) > 60 else item.name,
                     actions=[
                         PostbackAction(
                             "取消追蹤",
