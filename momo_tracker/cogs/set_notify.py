@@ -24,7 +24,7 @@ class SetNotifyCog(Cog):
                 "如欲在追蹤的商品特價時收到通知, 請先設定 LINE Notify\n操作方式可查看「使用說明」",
                 [
                     PostbackAction(
-                        "輸入 LINE Notify 權杖",
+                        f"{'輸入' if not user.line_notify_token else '更新'} LINE Notify 權杖",
                         data="ignore",
                         fill_in_text="cmd=set_line_notify&token=",
                         display_text=display_text,
