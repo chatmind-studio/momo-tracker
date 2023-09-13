@@ -112,7 +112,9 @@ class ItemCog(Cog):
             ],
         )
 
-        quick_reply = await self.item_paginator(items=[item], index=index)
+        quick_reply = await self.item_paginator(
+            items=await user.items.all(), index=index
+        )
         await ctx.reply_template(item.name, template=template, quick_reply=quick_reply)
 
     @command
