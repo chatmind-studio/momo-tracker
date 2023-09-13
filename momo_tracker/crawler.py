@@ -9,7 +9,7 @@ from .db_models import Item, PromotionItem
 
 async def crawl_promos():
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
+        browser = await p.chromium.launch()
         promotion_items: List[PromotionItem] = []
         page = await browser.new_page()
         await page.route(
