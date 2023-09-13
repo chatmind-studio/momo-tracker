@@ -8,7 +8,6 @@ from line.models import (
     QuickReplyItem,
     URIAction,
 )
-from playwright.async_api import Browser
 from tortoise.exceptions import IntegrityError
 
 from ..crawler import fetch_item_object
@@ -17,7 +16,7 @@ from ..utils import extract_url, split_list
 
 
 async def add_item_to_db(*, user_id: str, item_url: str) -> str:
-    user = await User.get(id=user_id)
+    user, _ = await User.get_or_create(id=user_id)
 
     item = await fetch_item_object(item_url)
     try:
