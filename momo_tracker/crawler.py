@@ -7,6 +7,9 @@ from playwright.async_api import async_playwright
 
 from .db_models import Item, PromotionItem
 
+if sys.platform == "linux":
+    import cchardet
+
 
 async def crawl_promos():
     async with async_playwright() as p:
@@ -88,18 +91,7 @@ async def fetch_item_object(item_url: str, session: aiohttp.ClientSession) -> It
     async with session.get(item_url) as response:
         html = await response.text()
         only_spans_and_imgs = SoupStrainer(["span", "img"])
-
-        if sys.platform == "linux":
-            import cchardet as chardet
-
-            soup = BeautifulSoup(
-                html,
-                "lxml",
-                parse_only=only_spans_and_imgs,
-                from_encoding=chardet.detect(html)["encoding"],
-            )
-        else:
-            soup = BeautifulSoup(html, "lxml", parse_only=only_spans_and_imgs)
+        soup = BeautifulSoup(html, "lxml", parse_only=only_spans_and_imgs)
 
         # find span with id osmGoodsName
         name_div = soup.find("span", {"id": "osmGoodsName"})
