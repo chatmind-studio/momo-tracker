@@ -1,7 +1,8 @@
+import sys
 from typing import List
 
 import aiohttp
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, SoupStrainer
 from playwright.async_api import async_playwright
 
 from .db_models import Item, PromotionItem
@@ -83,23 +84,34 @@ async def crawl_promos():
         return promotion_items
 
 
-async def fetch_item_object(item_url: str) -> Item:
-    async with aiohttp.ClientSession() as session:
-        async with session.get(item_url) as response:
-            html = await response.text()
-            soup = BeautifulSoup(html, "html.parser")
+async def fetch_item_object(item_url: str, session: aiohttp.ClientSession) -> Item:
+    async with session.get(item_url) as response:
+        html = await response.text()
+        only_spans_and_imgs = SoupStrainer(["span", "img"])
 
-            # find span with id osmGoodsName
-            name_div = soup.find("span", {"id": "osmGoodsName"})
-            name = name_div.text if name_div else ""
+        if sys.platform == "linux":
+            import cchardet as chardet
 
-            # find img with class name jqzoom and get its src
-            image_div = soup.find("img", {"class": "jqzoom"})
-            image_url = image_div["src"] if image_div else "https://i.imgur.com/dJFgdM7.png"  # type: ignore
-
-            item = Item(
-                id=str(response.url).split("i_code=")[1].split("&")[0],
-                name=name,
-                image_url=image_url,
+            soup = BeautifulSoup(
+                html,
+                "lxml",
+                parse_only=only_spans_and_imgs,
+                from_encoding=chardet.detect(html)["encoding"],
             )
-            return item
+        else:
+            soup = BeautifulSoup(html, "lxml", parse_only=only_spans_and_imgs)
+
+        # find span with id osmGoodsName
+        name_div = soup.find("span", {"id": "osmGoodsName"})
+        name = name_div.text if name_div else ""
+
+        # find img with class name jqzoom and get its src
+        image_div = soup.find("img", {"class": "jqzoom"})
+        image_url = image_div["src"] if image_div else "https://i.imgur.com/dJFgdM7.png"  # type: ignore
+
+        item = Item(
+            id=str(response.url).split("i_code=")[1].split("&")[0],
+            name=name,
+            image_url=image_url,
+        )
+        return item

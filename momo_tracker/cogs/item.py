@@ -1,5 +1,6 @@
 from typing import Any, List, Union
 
+import aiohttp
 from line import Bot, Cog, Context, command
 from line.models import (
     CarouselColumn,
@@ -14,18 +15,20 @@ from line.models import (
 from tortoise.exceptions import IntegrityError
 
 from ..crawler import fetch_item_object
-from ..db_models import User
+from ..db_models import Item, User
 from ..utils import split_list
 
 
-async def add_item_to_db(*, user: User, item_url: str) -> str:
-    item = await fetch_item_object(item_url)
+async def add_item_to_db(
+    *, user: User, item_url: str, session: aiohttp.ClientSession
+) -> str:
+    item = await fetch_item_object(item_url, session)
     try:
         await item.save()
     except IntegrityError:
-        pass
-    else:
-        await user.items.add(item)
+        item = await Item.get(id=item.id)
+
+    await user.items.add(item)
     return item.name
 
 

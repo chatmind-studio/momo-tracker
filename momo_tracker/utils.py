@@ -31,17 +31,17 @@ def split_list(input_list: List[T], n: int) -> List[List[T]]:
     return [input_list[i : i + n] for i in range(0, len(input_list), n)]
 
 
-async def line_notify(token: str, message: str) -> bool:
-    headers = {"Authorization": f"Bearer {token}"}
-    async with aiohttp.ClientSession(headers=headers) as session:
-        try:
-            await session.post(
-                "https://notify-api.line.me/api/notify", data={"message": message}
-            )
-        except Exception:
-            return False
-        else:
-            return True
+async def line_notify(token: str, message: str, session: aiohttp.ClientSession) -> bool:
+    try:
+        await session.post(
+            "https://notify-api.line.me/api/notify",
+            data={"message": message},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    except Exception:
+        return False
+    else:
+        return True
 
 
 def get_now() -> datetime.datetime:

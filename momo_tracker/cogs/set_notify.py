@@ -22,15 +22,16 @@ class SetNotifyCog(Cog):
     def __init__(self, bot: Bot):
         super().__init__(bot)
         self.bot = bot
+        self.session: aiohttp.ClientSession = bot.session  # type: ignore
 
     @command
     async def set_line_notify(self, ctx: Context, reset: bool = False) -> Any:
         user, _ = await User.get_or_create(id=ctx.user_id)
         if reset:
-            async with aiohttp.ClientSession(
-                headers={"Authorization": f"Bearer {user.line_notify_token}"}
-            ) as session:
-                await session.post("https://notify-api.line.me/api/revoke")
+            await self.session.post(
+                "https://notify-api.line.me/api/revoke",
+                headers={"Authorization": f"Bearer {user.line_notify_token}"},
+            )
 
             user.line_notify_token = None
             user.line_notify_state = None
@@ -79,7 +80,7 @@ class SetNotifyCog(Cog):
     async def send_test_message(self, ctx: Context) -> Any:
         user = await User.get(id=ctx.user_id)
         assert user.line_notify_token
-        await line_notify(user.line_notify_token, "這是一則測試訊息")
+        await line_notify(user.line_notify_token, "這是一則測試訊息", self.session)
         template = ButtonsTemplate(
             "已發送測試訊息",
             [

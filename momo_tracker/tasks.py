@@ -1,3 +1,5 @@
+import aiohttp
+
 from .crawler import crawl_promos
 from .db_models import Item, PromotionItem
 from .utils import line_notify
@@ -10,7 +12,7 @@ async def crawl_next_promotion_items() -> None:
         await item.save()
 
 
-async def notify_promotion_items() -> None:
+async def notify_promotion_items(session: aiohttp.ClientSession) -> None:
     promo_items = await PromotionItem.all()
     items = await Item.all()
     for promo_item in promo_items:
@@ -28,4 +30,4 @@ async def notify_promotion_items() -> None:
                 users = await item.users.all()
                 for user in users:
                     if user.line_notify_token:
-                        await line_notify(user.line_notify_token, message)
+                        await line_notify(user.line_notify_token, message, session)

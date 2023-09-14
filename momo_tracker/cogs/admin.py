@@ -1,5 +1,6 @@
 from typing import Any
 
+import aiohttp
 from line import Bot, Cog, Context, command
 from line.models import ButtonsTemplate, PostbackAction
 
@@ -12,6 +13,7 @@ class AdminCog(Cog):
     def __init__(self, bot: Bot):
         super().__init__(bot)
         self.bot = bot
+        self.session: aiohttp.ClientSession = bot.session  # type: ignore
 
     @command
     async def admin(self, ctx: Context) -> Any:
@@ -41,4 +43,4 @@ class AdminCog(Cog):
             return await ctx.reply_text("你不是管理員")
 
         await ctx.reply_text("開始通知特價商品")
-        await notify_promotion_items()
+        await notify_promotion_items(self.session)

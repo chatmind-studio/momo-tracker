@@ -29,9 +29,11 @@ class MomoTracker(Bot):
         channel_secret: str,
         access_token: str,
         db_url: str,
+        session: aiohttp.ClientSession,
     ) -> None:
         super().__init__(channel_secret=channel_secret, access_token=access_token)
         self.db_url = db_url
+        self.session = session
 
     async def _setup_rich_menu(self) -> None:
         result = await self.line_bot_api.create_rich_menu(RICH_MENU)
@@ -58,14 +60,13 @@ class MomoTracker(Bot):
                 "client_id": "RdvWjFh1XtViZ0VbQdqtgc",
                 "client_secret": LINE_NOTIFY_SECRET,
             }
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    "https://notify-bot.line.me/oauth/token", data=data
-                ) as resp:
-                    resp_data = await resp.json()
-                    user.line_notify_token = resp_data["access_token"]
-                    user.line_notify_state = None
-                    await user.save()
+            async with self.session.post(
+                "https://notify-bot.line.me/oauth/token", data=data
+            ) as resp:
+                resp_data = await resp.json()
+                user.line_notify_token = resp_data["access_token"]
+                user.line_notify_state = None
+                await user.save()
 
         return web.Response(
             status=302,
@@ -101,14 +102,20 @@ class MomoTracker(Bot):
 
             user, _ = await User.get_or_create(id=ctx.user_id)
             try:
-                item_name = await add_item_to_db(user=user, item_url=url)
+                item_name = await add_item_to_db(
+                    user=user, item_url=url, session=self.session
+                )
             except IndexError:
                 if user.line_notify_token:
-                    await line_notify(user.line_notify_token, f"這個商品連結 ({url}) 是無效的")
+                    await line_notify(
+                        user.line_notify_token, f"這個商品連結 ({url}) 是無效的", self.session
+                    )
             else:
                 if user.line_notify_token:
                     await line_notify(
-                        user.line_notify_token, f"已加入追蹤清單: {item_name} ({url})"
+                        user.line_notify_token,
+                        f"已加入追蹤清單: {item_name} ({url})",
+                        self.session,
                     )
         else:
             await ctx.reply_text("這個商品連結是無效的")
@@ -120,7 +127,7 @@ class MomoTracker(Bot):
             await crawl_promos()
         elif now.hour in (0, 8, 12, 16, 21) and now.minute < 1:
             logging.info("Notifying promotion items")
-            await notify_promotion_items()
+            await notify_promotion_items(self.session)
 
     async def on_close(self) -> None:
         await Tortoise.close_connections()
