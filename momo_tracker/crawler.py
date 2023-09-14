@@ -1,3 +1,4 @@
+import logging
 import sys
 from typing import List
 
@@ -88,22 +89,27 @@ async def crawl_promos():
 
 
 async def fetch_item_object(item_url: str, session: aiohttp.ClientSession) -> Item:
+    logging.info(f"Fetching item object from {item_url}")
+
     async with session.get(item_url) as response:
         html = await response.text()
-        only_spans_and_imgs = SoupStrainer(["span", "img"])
-        soup = BeautifulSoup(html, "lxml", parse_only=only_spans_and_imgs)
 
-        # find span with id osmGoodsName
-        name_div = soup.find("span", {"id": "osmGoodsName"})
-        name = name_div.text if name_div else ""
+    only_spans_and_imgs = SoupStrainer(["span", "img"])
+    soup = BeautifulSoup(html, "lxml", parse_only=only_spans_and_imgs)
 
-        # find img with class name jqzoom and get its src
-        image_div = soup.find("img", {"class": "jqzoom"})
-        image_url = image_div["src"] if image_div else "https://i.imgur.com/dJFgdM7.png"  # type: ignore
+    # find span with id osmGoodsName
+    name_div = soup.find("span", {"id": "osmGoodsName"})
+    name = name_div.text if name_div else ""
 
-        item = Item(
-            id=str(response.url).split("i_code=")[1].split("&")[0],
-            name=name,
-            image_url=image_url,
-        )
-        return item
+    # find img with class name jqzoom and get its src
+    image_div = soup.find("img", {"class": "jqzoom"})
+    image_url = image_div["src"] if image_div else "https://i.imgur.com/dJFgdM7.png"  # type: ignore
+
+    item = Item(
+        id=str(response.url).split("i_code=")[1].split("&")[0],
+        name=name,
+        image_url=image_url,
+    )
+
+    logging.info(f"Item object fetched from {item_url}")
+    return item
