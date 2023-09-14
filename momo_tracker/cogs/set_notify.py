@@ -97,11 +97,11 @@ class SetNotifyCog(Cog):
             "確定要重新設定 LINE Notify 嗎?",
             [
                 PostbackAction("確定", data="cmd=set_line_notify&reset=True"),
-                PostbackAction("取消", data="cmd=cancel_set_line_notify"),
+                PostbackAction("取消", data="cmd=cancel"),
             ],
         )
         await ctx.reply_template("確認設定", template=template)
 
     @command
-    async def cancel_set_line_notify(self, ctx: Context) -> Any:
+    async def cancel(self, ctx: Context) -> Any:
         await ctx.reply_text("已取消")
