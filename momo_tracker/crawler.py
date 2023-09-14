@@ -95,7 +95,7 @@ async def fetch_item_object(item_url: str) -> Item:
 
             # find img with class name jqzoom and get its src
             image_div = soup.find("img", {"class": "jqzoom"})
-            image_url = image_div["src"] if image_div else ""  # type: ignore
+            image_url = image_div["src"] if image_div else "https://i.imgur.com/dJFgdM7.png"  # type: ignore
 
             item = Item(
                 id=str(response.url).split("i_code=")[1].split("&")[0],
