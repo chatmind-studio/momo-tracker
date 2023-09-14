@@ -1,12 +1,12 @@
 import logging
 import os
 from pathlib import Path
-from typing import Any
 
 import aiohttp
 from aiohttp import web
 from dotenv import load_dotenv
 from line import Bot, Context
+from linebot.v3.webhooks import MessageEvent
 from tortoise import Tortoise
 
 from .cogs.item import add_item_to_db
@@ -34,16 +34,6 @@ class MomoTracker(Bot):
         super().__init__(channel_secret=channel_secret, access_token=access_token)
         self.db_url = db_url
         self.session = session
-
-    async def _setup_rich_menu(self) -> None:
-        result = await self.line_bot_api.create_rich_menu(RICH_MENU)
-        with open("data/rich_menu.png", "rb") as f:
-            await self.blob_api.set_rich_menu_image(
-                result.rich_menu_id,
-                body=bytearray(f.read()),
-                _headers={"Content-Type": "image/png"},
-            )
-        await self.line_bot_api.set_default_rich_menu(result.rich_menu_id)
 
     async def line_notify_callback(self, request: web.Request) -> web.Response:
         params = await request.post()
@@ -81,7 +71,7 @@ class MomoTracker(Bot):
             self.add_cog(f"momo_tracker.cogs.{cog.stem}")
 
         logging.info("Setting up rich menu")
-        await self._setup_rich_menu()
+        await self.set_rich_menu(RICH_MENU, "data/rich_menu.png")
 
         logging.info("Setting up database")
         await Tortoise.init(
@@ -93,8 +83,18 @@ class MomoTracker(Bot):
         logging.info("Setting up webhook")
         self.app.add_routes([web.post("/momo/line-notify", self.line_notify_callback)])
 
-    async def handle_no_cmd(self, ctx: Context, text: str) -> Any:
+    async def on_message(self, event: MessageEvent) -> None:
+        text = event.message.text  # type: ignore
+        data = self._parse_data(text)
+        if data.get("cmd"):
+            return await super().on_message(event)
+
         url = extract_url(text)
+        ctx = Context(
+            user_id=event.source.user_id,  # type: ignore
+            reply_token=event.reply_token,
+            api=self.line_bot_api,
+        )
         if url and ("momoshop.com" in url or "momo.dm" in url):
             await ctx.reply_text(
                 "機器人正在處理這項商品 (需約 5~7 秒), 如果你有進行「通知設定」, 將會在商品成功加入追蹤清單時收到通知"
