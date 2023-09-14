@@ -3,3 +3,4 @@ tortoise-orm
 playwright
 asyncpg
 beautifulsoup4
+lxml
