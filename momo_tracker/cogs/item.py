@@ -5,6 +5,7 @@ from line import Bot, Cog, Context, command
 from line.models import (
     CarouselColumn,
     CarouselTemplate,
+    ConfirmTemplate,
     PostbackAction,
     QuickReply,
     QuickReplyItem,
@@ -70,14 +71,14 @@ class ItemCog(Cog):
 
         quick_reply_items: List[QuickReplyItem] = [
             QuickReplyItem(
-                action=PostbackAction(label="取消追蹤所有商品", data="cmd=remove_all_items")
+                action=PostbackAction(label="❌ 取消追蹤所有商品", data="cmd=remove_all_items")
             )
         ]
         if index > 0:
             quick_reply_items.append(
                 QuickReplyItem(
                     action=PostbackAction(
-                        label="上一頁", data=f"cmd=view_items&index={index-1}"
+                        label="➡️ 上一頁", data=f"cmd=view_items&index={index-1}"
                     )
                 ),
             )
@@ -85,7 +86,7 @@ class ItemCog(Cog):
             quick_reply_items.append(
                 QuickReplyItem(
                     action=PostbackAction(
-                        label="下一頁", data=f"cmd=view_items&index={index+1}"
+                        label="⬅️ 下一頁", data=f"cmd=view_items&index={index+1}"
                     )
                 )
             )
@@ -93,9 +94,7 @@ class ItemCog(Cog):
         return TemplateMessage(
             "追蹤清單",
             template=CarouselTemplate(columns=columns),
-            quick_reply=QuickReply(items=quick_reply_items)
-            if quick_reply_items
-            else None,
+            quick_reply=QuickReply(items=quick_reply_items),
         )
 
     @command
@@ -116,7 +115,19 @@ class ItemCog(Cog):
         )
 
     @command
-    async def remove_all_items(self, ctx: Context) -> Any:
+    async def remove_all_items(self, ctx: Context, confirmed: bool = False) -> Any:
+        if not confirmed:
+            template = ConfirmTemplate(
+                "確定要取消追蹤所有商品嗎?",
+                actions=[
+                    PostbackAction(
+                        label="確定", data="cmd=remove_all_items&confirmed=True"
+                    ),
+                    PostbackAction(label="取消", data="cmd=cancel"),
+                ],
+            )
+            return await ctx.reply_template("確定嗎?", template=template)
+
         user = await User.get(id=ctx.user_id)
         await user.items.clear()
 
