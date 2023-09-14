@@ -111,5 +111,4 @@ async def fetch_item_object(item_url: str, session: aiohttp.ClientSession) -> It
         image_url=image_url,
     )
 
-    logging.info(f"Item object fetched from {item_url}")
     return item
