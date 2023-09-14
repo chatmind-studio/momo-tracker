@@ -78,7 +78,7 @@ class ItemCog(Cog):
             quick_reply_items.append(
                 QuickReplyItem(
                     action=PostbackAction(
-                        label="➡️ 上一頁", data=f"cmd=view_items&index={index-1}"
+                        label="⬅️ 上一頁", data=f"cmd=view_items&index={index-1}"
                     )
                 ),
             )
@@ -86,7 +86,7 @@ class ItemCog(Cog):
             quick_reply_items.append(
                 QuickReplyItem(
                     action=PostbackAction(
-                        label="⬅️ 下一頁", data=f"cmd=view_items&index={index+1}"
+                        label="➡️ 下一頁", data=f"cmd=view_items&index={index+1}"
                     )
                 )
             )
