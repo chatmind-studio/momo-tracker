@@ -68,7 +68,11 @@ class ItemCog(Cog):
             )
             columns.append(column)
 
-        quick_reply_items: List[QuickReplyItem] = []
+        quick_reply_items: List[QuickReplyItem] = [
+            QuickReplyItem(
+                action=PostbackAction(label="取消追蹤所有商品", data="cmd=remove_all_items")
+            )
+        ]
         if index > 0:
             quick_reply_items.append(
                 QuickReplyItem(
@@ -109,4 +113,13 @@ class ItemCog(Cog):
 
         await ctx.reply_multiple(
             [TextMessage(f"已取消追蹤 {item.name}"), await self.view_items_message(ctx)]
+        )
+
+    @command
+    async def remove_all_items(self, ctx: Context) -> Any:
+        user = await User.get(id=ctx.user_id)
+        await user.items.clear()
+
+        await ctx.reply_multiple(
+            [TextMessage("已取消追蹤所有商品"), await self.view_items_message(ctx)]
         )
